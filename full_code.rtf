@@ -1,0 +1,996 @@
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{\fonttbl{\f0\fnil\fcharset0 Calibri;}}
+{\colortbl ;\red0\green0\blue255;}
+{\*\generator Riched20 10.0.22621}\viewkind4\uc1 
+\pard\sa200\sl276\slmult1\f0\fs22\lang9 #include <dummy.h>\par
+#include <WebServer_ESP32_W6100.h>\par
+#include <WebServer_ESP32_W6100.hpp>\par
+\par
+\par
+const char* ssid     = "dinesh";   \par
+const char* password = "dinesh123";   \par
+ \par
+const char* apssid = "dinesh";\par
+const char* appassword = "dinesh123";    \par
+ \par
+#include <WiFi.h>\par
+#include <WiFiClientSecure.h>\par
+#include "esp_camera.h"         \par
+#include "soc/soc.h"            \par
+#include "soc/rtc_cntl_reg.h"   \par
+ \par
+String Feedback="";   \par
+ \par
+String Command="",cmd="",P1="",P2="",P3="",P4="",P5="",P6="",P7="",P8="",P9="";\par
+ \par
+byte ReceiveState=0,cmdState=1,strState=1,questionstate=0,equalstate=0,semicolonstate=0;\par
+ \par
+ \par
+ \par
+ \par
+#define PWDN_GPIO_NUM     32\par
+#define RESET_GPIO_NUM    -1\par
+#define XCLK_GPIO_NUM      0\par
+#define SIOD_GPIO_NUM     26\par
+#define SIOC_GPIO_NUM     27\par
+ \par
+#define Y9_GPIO_NUM       35\par
+#define Y8_GPIO_NUM       34\par
+#define Y7_GPIO_NUM       39\par
+#define Y6_GPIO_NUM       36\par
+#define Y5_GPIO_NUM       21\par
+#define Y4_GPIO_NUM       19\par
+#define Y3_GPIO_NUM       18\par
+#define Y2_GPIO_NUM        5\par
+#define VSYNC_GPIO_NUM    25\par
+#define HREF_GPIO_NUM     23\par
+#define PCLK_GPIO_NUM     22\par
+ \par
+WiFiServer server(80);\par
+ \par
+void ExecuteCommand()\par
+\{\par
+  //Serial.println("");\par
+  //Serial.println("Command: "+Command);\par
+  if (cmd!="getstill") \{\par
+    Serial.println("cmd= "+cmd+" ,P1= "+P1+" ,P2= "+P2+" ,P3= "+P3+" ,P4= "+P4+" ,P5= "+P5+" ,P6= "+P6+" ,P7= "+P7+" ,P8= "+P8+" ,P9= "+P9);\par
+    Serial.println("");\par
+  \}\par
+  \par
+  if (cmd=="your cmd") \{\par
+    // You can do anything.\par
+    // Feedback="<font color=\\"red\\">Hello World</font>";\par
+  \}\par
+  else if (cmd=="ip") \{\par
+    Feedback="AP IP: "+WiFi.softAPIP().toString();    \par
+    Feedback+=", ";\par
+    Feedback+="STA IP: "+WiFi.localIP().toString();\par
+  \}  \par
+  else if (cmd=="mac") \{\par
+    Feedback="STA MAC: "+WiFi.macAddress();\par
+  \}  \par
+  else if (cmd=="resetwifi") \{  \par
+    WiFi.begin(P1.c_str(), P2.c_str());\par
+    Serial.print("Connecting to ");\par
+    Serial.println(P1);\par
+    long int StartTime=millis();\par
+    while (WiFi.status() != WL_CONNECTED) \par
+    \{\par
+        delay(500);\par
+        if ((StartTime+5000) < millis()) break;\par
+    \} \par
+    Serial.println("");\par
+    Serial.println("STAIP: "+WiFi.localIP().toString());\par
+    Feedback="STAIP: "+WiFi.localIP().toString();\par
+  \}    \par
+  else if (cmd=="restart") \{\par
+    ESP.restart();\par
+  \}    \par
+  else if (cmd=="digitalwrite") \{\par
+    ledcDetachPin(P1.toInt());\par
+    pinMode(P1.toInt(), OUTPUT);\par
+    digitalWrite(P1.toInt(), P2.toInt());\par
+  \}   \par
+  else if (cmd=="analogwrite") \{\par
+    if (P1="4") \{\par
+      ledcAttachPin(4, 4);  \par
+      ledcSetup(4, 5000, 8);   \par
+      ledcWrite(4,P2.toInt());  \par
+    \}\par
+    else \{\par
+      ledcAttachPin(P1.toInt(), 5);\par
+      ledcSetup(5, 5000, 8);\par
+      ledcWrite(5,P2.toInt());\par
+    \}\par
+  \}    \par
+  else if (cmd=="flash") \{\par
+    ledcAttachPin(4, 4);  \par
+    ledcSetup(4, 5000, 8);   \par
+     \par
+    int val = P1.toInt();\par
+    ledcWrite(4,val);  \par
+  \}  \par
+  else if (cmd=="framesize") \{ \par
+    sensor_t * s = esp_camera_sensor_get();  \par
+    if (P1=="QQVGA")\par
+      s->set_framesize(s, FRAMESIZE_QQVGA);\par
+    else if (P1=="HQVGA")\par
+      s->set_framesize(s, FRAMESIZE_HQVGA);\par
+    else if (P1=="QVGA")\par
+      s->set_framesize(s, FRAMESIZE_QVGA);\par
+    else if (P1=="CIF")\par
+      s->set_framesize(s, FRAMESIZE_CIF);\par
+    else if (P1=="VGA")\par
+      s->set_framesize(s, FRAMESIZE_VGA);  \par
+    else if (P1=="SVGA")\par
+      s->set_framesize(s, FRAMESIZE_SVGA);\par
+    else if (P1=="XGA")w\par
+      s->set_framesize(s, FRAMESIZE_XGA);\par
+    else if (P1=="SXGA")\par
+      s->set_framesize(s, FRAMESIZE_SXGA);\par
+    else if (P1=="UXGA")\par
+      s->set_framesize(s, FRAMESIZE_UXGA);           \par
+    else \par
+      s->set_framesize(s, FRAMESIZE_QVGA);     \par
+  \}\par
+  else if (cmd=="quality") \{ \par
+    sensor_t * s = esp_camera_sensor_get();\par
+    int val = P1.toInt(); \par
+    s->set_quality(s, val);\par
+  \}\par
+  else if (cmd=="contrast") \{\par
+    sensor_t * s = esp_camera_sensor_get();\par
+    int val = P1.toInt(); \par
+    s->set_contrast(s, val);\par
+  \}\par
+  else if (cmd=="brightness") \{\par
+    sensor_t * s = esp_camera_sensor_get();\par
+    int val = P1.toInt();  \par
+    s->set_brightness(s, val);  \par
+  \}\par
+  else if (cmd=="serial") \{\par
+    Serial.println(P1); \par
+  \}     \par
+  else if (cmd=="detectCount") \{\par
+    Serial.println(P1+" = "+P2); \par
+  \}\par
+  else if (cmd=="tcp") \{\par
+    String domain=P1;\par
+    int port=P2.toInt();\par
+    String request=P3;\par
+    int wait=P4.toInt();      // wait = 0 or 1\par
+ \par
+    if ((port==443)||(domain.indexOf("https")==0)||(domain.indexOf("HTTPS")==0))\par
+      Feedback=tcp_https(domain,request,port,wait);\par
+    else\par
+      Feedback=tcp_http(domain,request,port,wait);  \par
+  \}\par
+  else if (cmd=="linenotify") \{    //message=xxx&stickerPackageId=xxx&stickerId=xxx\par
+    String token = P1;\par
+    String request = P2;\par
+    Feedback=LineNotify(token,request,1);\par
+    if (Feedback.indexOf("status")!=-1) \{\par
+      int s=Feedback.indexOf("\{");\par
+      Feedback=Feedback.substring(s);\par
+      int e=Feedback.indexOf("\}");\par
+      Feedback=Feedback.substring(0,e);\par
+      Feedback.replace("\\"","");\par
+      Feedback.replace("\{","");\par
+      Feedback.replace("\}","");\par
+    \}\par
+  \}\par
+  else if (cmd=="sendCapturedImageToLineNotify") \{ \par
+    Feedback=sendCapturedImageToLineNotify(P1);\par
+    if (Feedback=="") Feedback="The image failed to send. <br>The framesize may be too large.";\par
+  \} \par
+  else \{\par
+    Feedback="Command is not defined.";\par
+  \}\par
+  if (Feedback=="") Feedback=Command;  \par
+\}\par
+ \par
+void setup() \{\par
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);  \par
+  \par
+  Serial.begin(115200);\par
+  Serial.setDebugOutput(true);  \par
+  Serial.println();\par
+ \par
+  \par
+  camera_config_t config;\par
+  config.ledc_channel = LEDC_CHANNEL_0;\par
+  config.ledc_timer = LEDC_TIMER_0;\par
+  config.pin_d0 = Y2_GPIO_NUM;\par
+  config.pin_d1 = Y3_GPIO_NUM;\par
+  config.pin_d2 = Y4_GPIO_NUM;\par
+  config.pin_d3 = Y5_GPIO_NUM;\par
+  config.pin_d4 = Y6_GPIO_NUM;\par
+  config.pin_d5 = Y7_GPIO_NUM;\par
+  config.pin_d6 = Y8_GPIO_NUM;\par
+  config.pin_d7 = Y9_GPIO_NUM;\par
+  config.pin_xclk = XCLK_GPIO_NUM;\par
+  config.pin_pclk = PCLK_GPIO_NUM;\par
+  config.pin_vsync = VSYNC_GPIO_NUM;\par
+  config.pin_href = HREF_GPIO_NUM;\par
+  config.pin_sscb_sda = SIOD_GPIO_NUM;\par
+  config.pin_sscb_scl = SIOC_GPIO_NUM;\par
+  config.pin_pwdn = PWDN_GPIO_NUM;\par
+  config.pin_reset = RESET_GPIO_NUM;\par
+  config.xclk_freq_hz = 20000000;\par
+  config.pixel_format = PIXFORMAT_JPEG;\par
+  //init with high specs to pre-allocate larger buffers\par
+  if(psramFound())\{\par
+    config.frame_size = FRAMESIZE_UXGA;\par
+    config.jpeg_quality = 10;  //0-63 lower number means higher quality\par
+    config.fb_count = 2;\par
+  \} else \{\par
+    config.frame_size = FRAMESIZE_SVGA;\par
+    config.jpeg_quality = 12;  //0-63 lower number means higher quality\par
+    config.fb_count = 1;\par
+  \}\par
+  \par
+  // camera init\par
+  esp_err_t err = esp_camera_init(&config);\par
+  if (err != ESP_OK) \{\par
+    Serial.printf("Camera init failed with error 0x%x", err);\par
+    delay(1000);\par
+    ESP.restart();\par
+  \}\par
+ \par
+  //drop down frame size for higher initial frame rate\par
+  sensor_t * s = esp_camera_sensor_get();\par
+  s->set_framesize(s, FRAMESIZE_QVGA);  //UXGA|SXGA|XGA|SVGA|VGA|CIF|QVGA|HQVGA|QQVGA  \par
+ \par
+  ledcAttachPin(4, 4);  \par
+  ledcSetup(4, 5000, 8);    \par
+  \par
+  WiFi.mode(WIFI_AP_STA);\par
+  \par
+  //WiFi.config(IPAddress(192, 168, 201, 100), IPAddress(192, 168, 201, 2), IPAddress(255, 255, 255, 0));\par
+ \par
+  WiFi.begin(ssid, password);    \par
+ \par
+  delay(1000);\par
+  Serial.println("");\par
+  Serial.print("Connecting to ");\par
+  Serial.println(ssid);\par
+  \par
+  long int StartTime=millis();\par
+  while (WiFi.status() != WL_CONNECTED) \par
+  \{\par
+      delay(500);\par
+      if ((StartTime+10000) < millis()) break;   \par
+  \} \par
+ \par
+  if (WiFi.status() == WL_CONNECTED) \{    \par
+    WiFi.softAP((WiFi.localIP().toString()+"_"+(String)apssid).c_str(), appassword);        \par
+    Serial.println("");\par
+    Serial.println("STAIP address: ");\par
+    Serial.println(WiFi.localIP());  \par
+ \par
+    for (int i=0;i<5;i++) \{   \par
+      ledcWrite(4,10);\par
+      delay(200);\par
+      ledcWrite(4,0);\par
+      delay(200);    \par
+    \}         \par
+  \}\par
+  else \{\par
+    WiFi.softAP((WiFi.softAPIP().toString()+"_"+(String)apssid).c_str(), appassword);         \par
+ \par
+    for (int i=0;i<2;i++) \{    \par
+      ledcWrite(4,10);\par
+      delay(1000);\par
+      ledcWrite(4,0);\par
+      delay(1000);    \par
+    \}\par
+  \}     \par
+ \par
+   \par
+  //WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0)); \par
+  Serial.println("");\par
+  Serial.println("APIP address: ");\par
+  Serial.println(WiFi.softAPIP());    \par
+ \par
+  pinMode(4, OUTPUT);\par
+  digitalWrite(4, LOW);  \par
+ \par
+  server.begin();          \par
+\}\par
+ \par
+static const char PROGMEM INDEX_HTML[] = R"rawliteral(\par
+  <!DOCTYPE html>\par
+  <head>\par
+  <meta charset="utf-8">\par
+  <meta name="viewport" content="width=device-width,initial-scale=1">\par
+  <script src="https:\\/\\/ajax.googleapis.com/ajax/libs/jquery/1.8.0/jquery.min.js"></script>\par
+  <script src="https:\\/\\/cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"> </script>\par
+  <script src="https:\\/\\/cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.1.0"> </script>   \par
+  </head><body>\par
+  <img id="ShowImage" src="" style="display:none">\par
+  <canvas id="canvas" width="0" height="0"></canvas>  \par
+  <table>\par
+  <tr>\par
+    <td><input type="button" id="restart" value="Restart"></td> \par
+    <td colspan="2"><input type="button" id="getStill" value="Start Detect" style="display:none"></td> \par
+  </tr>\par
+  <tr>\par
+    <td>Object</td> \par
+    <td colspan="2">\par
+        <select id="object" onchange="count.innerHTML='';">\par
+          <option value="person">person</option>\par
+          <option value="bicycle">bicycle</option>\par
+          <option value="car">car</option>\par
+          <option value="motorcycle">motorcycle</option>\par
+          <option value="airplane">airplane</option>\par
+          <option value="bus">bus</option>\par
+          <option value="train">train</option>\par
+          <option value="truck">truck</option>\par
+          <option value="boat">boat</option>\par
+          <option value="traffic light">traffic light</option>\par
+          <option value="fire hydrant">fire hydrant</option>\par
+          <option value="stop sign">stop sign</option>\par
+          <option value="parking meter">parking meter</option>\par
+          <option value="bench">bench</option>\par
+          <option value="bird">bird</option>\par
+          <option value="cat">cat</option>\par
+          <option value="dog">dog</option>\par
+          <option value="horse">horse</option>\par
+          <option value="sheep">sheep</option>\par
+          <option value="cow">cow</option>\par
+          <option value="elephant">elephant</option>\par
+          <option value="lion">lion</option>\par
+          <option value="tiger">tiger</option>\par
+          <option value="bear">bear</option>\par
+          <option value="zebra">zebra</option>\par
+          <option value="giraffe">giraffe</option>\par
+          <option value="backpack">backpack</option>\par
+          <option value="umbrella">umbrella</option>\par
+          <option value="handbag">handbag</option>\par
+          <option value="tie">tie</option>\par
+          <option value="suitcase">suitcase</option>\par
+          <option value="frisbee">frisbee</option>\par
+          <option value="skis">skis</option>\par
+          <option value="snowboard">snowboard</option>\par
+          <option value="sports ball">sports ball</option>\par
+          <option value="kite">kite</option>\par
+          <option value="baseball bat">baseball bat</option>\par
+          <option value="baseball glove">baseball glove</option>\par
+          <option value="skateboard">skateboard</option>\par
+          <option value="surfboard">surfboard</option>\par
+          <option value="tennis racket">tennis racket</option>\par
+          <option value="bottle">bottle</option>\par
+          <option value="wine glass">wine glass</option>\par
+          <option value="cup">cup</option>\par
+          <option value="fork">fork</option>\par
+          <option value="knife">knife</option>\par
+          <option value="spoon">spoon</option>\par
+          <option value="bowl">bowl</option>\par
+          <option value="banana">banana</option>\par
+          <option value="apple">apple</option>\par
+          <option value="sandwich">sandwich</option>\par
+          <option value="orange">orange</option>\par
+          <option value="broccoli">broccoli</option>\par
+          <option value="carrot">carrot</option>\par
+          <option value="hot dog">hot dog</option>\par
+          <option value="pizza">pizza</option>\par
+          <option value="donut">donut</option>\par
+          <option value="cake">cake</option>\par
+          <option value="chair">chair</option>\par
+          <option value="couch">couch</option>\par
+          <option value="potted plant">potted plant</option>\par
+          <option value="bed">bed</option>\par
+          <option value="dining table">dining table</option>\par
+          <option value="toilet">toilet</option>\par
+          <option value="tv">tv</option>\par
+          <option value="laptop">laptop</option>\par
+          <option value="mouse">mouse</option>\par
+          <option value="remote">remote</option>\par
+          <option value="keyboard">keyboard</option>\par
+          <option value="cell phone">cell phone</option>\par
+          <option value="microwave">microwave</option>\par
+          <option value="oven">oven</option>\par
+          <option value="toaster">toaster</option>\par
+          <option value="sink">sink</option>\par
+          <option value="refrigerator">refrigerator</option>\par
+          <option value="book">book</option>\par
+          <option value="clock">clock</option>\par
+          <option value="vase">vase</option>\par
+          <option value="scissors">scissors</option>\par
+          <option value="teddy bear">teddy bear</option>\par
+          <option value="hair drier">hair drier</option>\par
+          <option value="toothbrush">toothbrush</option>\par
+        </select>\par
+    </td>\par
+    <td><span id="count" style="color:red"><span></td>\par
+  </tr>\par
+  <tr>\par
+    <td>ScoreLimit</td> \par
+    <td colspan="2">\par
+      <select id="score">\par
+        <option value="1.0">1</option>\par
+        <option value="0.9">0.9</option>\par
+        <option value="0.8">0.8</option>\par
+        <option value="0.7">0.7</option>\par
+        <option value="0.6">0.6</option>\par
+        <option value="0.5">0.5</option>\par
+        <option value="0.4">0.4</option>\par
+        <option value="0.3">0.3</option>\par
+        <option value="0.2">0.2</option>\par
+        <option value="0.1">0.1</option>\par
+        <option value="0" selected="selected">0</option>\par
+      </select>\par
+    </td>\par
+  </tr>\par
+  <tr>\par
+    <td>MirrorImage</td> \par
+    <td colspan="2">  \par
+      <select id="mirrorimage">\par
+        <option value="1">yes</option>\par
+        <option value="0">no</option>\par
+      </select>\par
+    </td>\par
+  </tr>     \par
+  <tr>\par
+    <td>Resolution</td> \par
+    <td colspan="2">\par
+      <select id="framesize">\par
+        <option value="UXGA">UXGA(1600x1200)</option>\par
+        <option value="SXGA">SXGA(1280x1024)</option>\par
+        <option value="XGA">XGA(1024x768)</option>\par
+        <option value="SVGA">SVGA(800x600)</option>\par
+        <option value="VGA">VGA(640x480)</option>\par
+        <option value="CIF">CIF(400x296)</option>\par
+        <option value="QVGA" selected="selected">QVGA(320x240)</option>\par
+        <option value="HQVGA">HQVGA(240x176)</option>\par
+        <option value="QQVGA">QQVGA(160x120)</option>\par
+      </select> \par
+    </td>\par
+  </tr>    \par
+  <tr>\par
+    <td>Flash</td>\par
+    <td colspan="2"><input type="range" id="flash" min="0" max="255" value="0"></td>\par
+  </tr>\par
+  <tr>\par
+    <td>Quality</td>\par
+    <td colspan="2"><input type="range" id="quality" min="10" max="63" value="10"></td>\par
+  </tr>\par
+  <tr>\par
+    <td>Brightness</td>\par
+    <td colspan="2"><input type="range" id="brightness" min="-2" max="2" value="0"></td>\par
+  </tr>\par
+  <tr>\par
+    <td>Contrast</td>\par
+    <td colspan="2"><input type="range" id="contrast" min="-2" max="2" value="0"></td>\par
+  </tr>\par
+ \par
+  </table>\par
+  <div id="result" style="color:red"><div>\par
+  </body>\par
+  </html> \par
+  \par
+  <script>\par
+    var getStill = document.getElementById('getStill');\par
+    var ShowImage = document.getElementById('ShowImage');\par
+    var canvas = document.getElementById("canvas");\par
+    var context = canvas.getContext("2d"); \par
+    var object = document.getElementById('object');\par
+    var score = document.getElementById("score");\par
+    var mirrorimage = document.getElementById("mirrorimage");      \par
+    var count = document.getElementById('count'); \par
+    var result = document.getElementById('result');\par
+    var flash = document.getElementById('flash'); \par
+    var lastValue="";\par
+    var myTimer;\par
+    var restartCount=0;\par
+    var Model;    \par
+    getStill.onclick = function (event) \{\par
+      clearInterval(myTimer);  \par
+      myTimer = setInterval(function()\{error_handle();\},5000);\par
+      ShowImage.src=location.origin+'/?getstill='+Math.random();\par
+    \}\par
+    function error_handle() \{\par
+      restartCount++;\par
+      clearInterval(myTimer);\par
+      if (restartCount<=2) \{\par
+        result.innerHTML = "Get still error. <br>Restart ESP32-CAM "+restartCount+" times.";\par
+        myTimer = setInterval(function()\{getStill.click();\},10000);\par
+      \}\par
+      else\par
+        result.innerHTML = "Get still error. <br>Please close the page and check ESP32-CAM.";\par
+    \}    \par
+    ShowImage.onload = function (event) \{\par
+      clearInterval(myTimer);\par
+      restartCount=0;\par
+      canvas.setAttribute("width", ShowImage.width);\par
+      canvas.setAttribute("height", ShowImage.height);\par
+      if (mirrorimage.value==1) \{\par
+        context.translate((canvas.width + ShowImage.width) / 2, 0);\par
+        context.scale(-1, 1);\par
+        context.drawImage(ShowImage, 0, 0, ShowImage.width, ShowImage.height);\par
+        context.setTransform(1, 0, 0, 1, 0, 0);\par
+      \}\par
+      else\par
+        context.drawImage(ShowImage,0,0,ShowImage.width,ShowImage.height);\par
+      if (Model) \{\par
+        DetectImage();\par
+      \}          \par
+    \}     \par
+    \par
+    restart.onclick = function (event) \{\par
+      fetch(location.origin+'/?restart=stop');\par
+    \}    \par
+    framesize.onclick = function (event) \{\par
+      fetch(document.location.origin+'/?framesize='+this.value+';stop');\par
+    \}  \par
+    flash.onchange = function (event) \{\par
+      fetch(location.origin+'/?flash='+this.value+';stop');\par
+    \} \par
+    quality.onclick = function (event) \{\par
+      fetch(document.location.origin+'/?quality='+this.value+';stop');\par
+    \} \par
+    brightness.onclick = function (event) \{\par
+      fetch(document.location.origin+'/?brightness='+this.value+';stop');\par
+    \} \par
+    contrast.onclick = function (event) \{\par
+      fetch(document.location.origin+'/?contrast='+this.value+';stop');\par
+    \}                             \par
+    \par
+    function ObjectDetect() \{\par
+      result.innerHTML = "Please wait for loading model.";\par
+      cocoSsd.load().then(cocoSsd_Model => \{\par
+        Model = cocoSsd_Model;\par
+        result.innerHTML = "";\par
+        getStill.style.display = "block";\par
+      \}); \par
+    \}\par
+    \par
+    function DetectImage() \{\par
+      Model.detect(canvas).then(Predictions => \{    \par
+        var s = (canvas.width>canvas.height)?canvas.width:canvas.height;\par
+        var objectCount=0;\par
+        \par
+        //console.log('Predictions: ', Predictions);\par
+        if (Predictions.length>0) \{\par
+          result.innerHTML = "";\par
+          for (var i=0;i<Predictions.length;i++) \{\par
+            const x = Predictions[i].bbox[0];\par
+            const y = Predictions[i].bbox[1];\par
+            const width = Predictions[i].bbox[2];\par
+            const height = Predictions[i].bbox[3];\par
+            context.lineWidth = Math.round(s/200);\par
+            context.strokeStyle = "#00FFFF";\par
+            context.beginPath();\par
+            context.rect(x, y, width, height);\par
+            context.stroke(); \par
+            context.lineWidth = "2";\par
+            context.fillStyle = "red";\par
+            context.font = Math.round(s/30) + "px Arial";\par
+            context.fillText(Predictions[i].class, x, y);\par
+            //context.fillText(i, x, y);\par
+            result.innerHTML+= "[ "+i+" ] "+Predictions[i].class+", "+Math.round(Predictions[i].score*100)+"%, "+Math.round(x)+", "+Math.round(y)+", "+Math.round(width)+", "+Math.round(height)+"<br>";\par
+            \par
+            if (Predictions[i].class==object.value&&Predictions[i].score>=score.value) \{\par
+              objectCount++;\par
+            \}  \par
+          \}\par
+          count.innerHTML = objectCount;\par
+        \}\par
+        else \{\par
+          result.innerHTML = "Unrecognizable";\par
+          count.innerHTML = "0";\par
+        \}\par
+    \par
+      //if (count.innerHTML != lastValue) \{ \par
+          lastValue = count.innerHTML;\par
+          if (objectCount>0) \{\par
+            //$.ajax(\{url: document.location.origin+'/?serial='+object.value+';stop', async: false\});\par
+            $.ajax(\{url: document.location.origin+'/?detectCount='+object.value+';'+String(objectCount)+';stop', async: false\}); \par
+          \}  \par
+      //\}\par
+        try \{ \par
+          document.createEvent("TouchEvent");\par
+          setTimeout(function()\{getStill.click();\},250);\par
+        \}\par
+        catch(e) \{ \par
+          setTimeout(function()\{getStill.click();\},150);\par
+        \} \par
+      \});\par
+    \}\par
+    function getFeedback(target) \{\par
+      var data = $.ajax(\{\par
+      type: "get",\par
+      dataType: "text",\par
+      url: target,\par
+      success: function(response)\par
+        \{\par
+          result.innerHTML = response;\par
+        \},\par
+        error: function(exception)\par
+        \{\par
+          result.innerHTML = 'fail';\par
+        \}\par
+      \});\par
+    \}      \par
+    window.onload = function () \{ ObjectDetect(); \}    \par
+  </script>   \par
+)rawliteral";\par
+ \par
+ \par
+ \par
+void loop() \{\par
+  Feedback="";Command="";cmd="";P1="";P2="";P3="";P4="";P5="";P6="";P7="";P8="";P9="";\par
+  ReceiveState=0,cmdState=1,strState=1,questionstate=0,equalstate=0,semicolonstate=0;\par
+  \par
+   WiFiClient client = server.available();\par
+ \par
+  if (client) \{ \par
+    String currentLine = "";\par
+ \par
+    while (client.connected()) \{\par
+      if (client.available()) \{\par
+        char c = client.read();             \par
+        \par
+        getCommand(c);   \par
+                \par
+        if (c == '\\n') \{\par
+          if (currentLine.length() == 0) \{    \par
+            \par
+            if (cmd=="getstill") \{\par
+             \par
+              camera_fb_t * fb = NULL;\par
+              fb = esp_camera_fb_get();  \par
+              if(!fb) \{\par
+                Serial.println("Camera capture failed");\par
+                delay(1000);\par
+                ESP.restart();\par
+              \}\par
+  \par
+              client.println("HTTP/1.1 200 OK");\par
+              client.println("Access-Control-Allow-Origin: *");              \par
+              client.println("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");\par
+              client.println("Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS");\par
+              client.println("Content-Type: image/jpeg");\par
+              client.println("Content-Disposition: form-data; name=\\"imageFile\\"; filename=\\"picture.jpg\\""); \par
+              client.println("Content-Length: " + String(fb->len));             \par
+              client.println("Connection: close");\par
+              client.println();\par
+              \par
+              uint8_t *fbBuf = fb->buf;\par
+              size_t fbLen = fb->len;\par
+              for (size_t n=0;n<fbLen;n=n+1024) \{\par
+                if (n+1024<fbLen) \{\par
+                  client.write(fbBuf, 1024);\par
+                  fbBuf += 1024;\par
+                \}\par
+                else if (fbLen%1024>0) \{\par
+                  size_t remainder = fbLen%1024;\par
+                  client.write(fbBuf, remainder);\par
+                \}\par
+              \}  \par
+              \par
+              esp_camera_fb_return(fb);\par
+            \par
+              pinMode(4, OUTPUT);\par
+              digitalWrite(4, LOW);               \par
+            \}\par
+            else \{\par
+              \par
+              client.println("HTTP/1.1 200 OK");\par
+              client.println("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept");\par
+              client.println("Access-Control-Allow-Methods: GET,POST,PUT,DELETE,OPTIONS");\par
+              client.println("Content-Type: text/html; charset=utf-8");\par
+              client.println("Access-Control-Allow-Origin: *");\par
+              client.println("Connection: close");\par
+              client.println();\par
+              \par
+              String Data="";\par
+              if (cmd!="")\par
+                Data = Feedback;\par
+              else \{\par
+                Data = String((const char *)INDEX_HTML);\par
+              \}\par
+              int Index;\par
+              for (Index = 0; Index < Data.length(); Index = Index+1000) \{\par
+                client.print(Data.substring(Index, Index+1000));\par
+              \}           \par
+              \par
+              client.println();\par
+            \}\par
+                        \par
+            Feedback="";\par
+            break;\par
+          \} else \{\par
+            currentLine = "";\par
+          \}\par
+        \} \par
+        else if (c != '\\r') \{\par
+          currentLine += c;\par
+        \}\par
+ \par
+        if ((currentLine.indexOf("/?")!=-1)&&(currentLine.indexOf(" HTTP")!=-1)) \{\par
+          if (Command.indexOf("stop")!=-1) \{   {{\field{\*\fldinst{HYPERLINK http://192.168.xxx.xxx/?cmd=aaa;bbb;ccc;stop }}{\fldrslt{http://192.168.xxx.xxx/?cmd=aaa;bbb;ccc;stop\ul0\cf0}}}}\f0\fs22\par
+            client.println();\par
+            client.println();\par
+            client.stop();\par
+          \}\par
+          currentLine="";\par
+          Feedback="";\par
+          ExecuteCommand();\par
+        \}\par
+      \}\par
+    \}\par
+    delay(1);\par
+    client.stop();\par
+  \}\par
+\}\par
+ \par
+ \par
+void getCommand(char c)\par
+\{\par
+  if (c=='?') ReceiveState=1;\par
+  if ((c==' ')||(c=='\\r')||(c=='\\n')) ReceiveState=0;\par
+  \par
+  if (ReceiveState==1)\par
+  \{\par
+    Command=Command+String(c);\par
+    \par
+    if (c=='=') cmdState=0;\par
+    if (c==';') strState++;\par
+  \par
+    if ((cmdState==1)&&((c!='?')||(questionstate==1))) cmd=cmd+String(c);\par
+    if ((cmdState==0)&&(strState==1)&&((c!='=')||(equalstate==1))) P1=P1+String(c);\par
+    if ((cmdState==0)&&(strState==2)&&(c!=';')) P2=P2+String(c);\par
+    if ((cmdState==0)&&(strState==3)&&(c!=';')) P3=P3+String(c);\par
+    if ((cmdState==0)&&(strState==4)&&(c!=';')) P4=P4+String(c);\par
+    if ((cmdState==0)&&(strState==5)&&(c!=';')) P5=P5+String(c);\par
+    if ((cmdState==0)&&(strState==6)&&(c!=';')) P6=P6+String(c);\par
+    if ((cmdState==0)&&(strState==7)&&(c!=';')) P7=P7+String(c);\par
+    if ((cmdState==0)&&(strState==8)&&(c!=';')) P8=P8+String(c);\par
+    if ((cmdState==0)&&(strState>=9)&&((c!=';')||(semicolonstate==1))) P9=P9+String(c);\par
+    \par
+    if (c=='?') questionstate=1;\par
+    if (c=='=') equalstate=1;\par
+    if ((strState>=9)&&(c==';')) semicolonstate=1;\par
+  \}\par
+\}\par
+ \par
+String tcp_http(String domain,String request,int port,byte wait)\par
+\{\par
+    WiFiClient client_tcp;\par
+ \par
+    if (client_tcp.connect(domain.c_str(), port)) \par
+    \{\par
+      Serial.println("GET " + request);\par
+      client_tcp.println("GET " + request + " HTTP/1.1");\par
+      client_tcp.println("Host: " + domain);\par
+      client_tcp.println("Connection: close");\par
+      client_tcp.println();\par
+ \par
+      String getResponse="",Feedback="";\par
+      boolean state = false;\par
+      int waitTime = 3000;   // timeout 3 seconds\par
+      long startTime = millis();\par
+      while ((startTime + waitTime) > millis())\par
+      \{\par
+        while (client_tcp.available()) \par
+        \{\par
+            char c = client_tcp.read();\par
+            if (state==true) Feedback += String(c);          \par
+            if (c == '\\n') \par
+            \{\par
+              if (getResponse.length()==0) state=true; \par
+              getResponse = "";\par
+            \} \par
+            else if (c != '\\r')\par
+              getResponse += String(c);\par
+            if (wait==1)\par
+              startTime = millis();\par
+         \}\par
+         if (wait==0)\par
+          if ((state==true)&&(Feedback.length()!= 0)) break;\par
+      \}\par
+      client_tcp.stop();\par
+      return Feedback;\par
+    \}\par
+    else\par
+      return "Connection failed";  \par
+\}\par
+ \par
+String tcp_https(String domain,String request,int port,byte wait)\par
+\{\par
+    WiFiClientSecure client_tcp;\par
+    client_tcp.setInsecure();   //run version 1.0.5 or above\par
+  \par
+    if (client_tcp.connect(domain.c_str(), port)) \par
+    \{\par
+      Serial.println("GET " + request);\par
+      client_tcp.println("GET " + request + " HTTP/1.1");\par
+      client_tcp.println("Host: " + domain);\par
+      client_tcp.println("Connection: close");\par
+      client_tcp.println();\par
+ \par
+      String getResponse="",Feedback="";\par
+      boolean state = false;\par
+      int waitTime = 3000;   // timeout 3 seconds\par
+      long startTime = millis();\par
+      while ((startTime + waitTime) > millis())\par
+      \{\par
+        while (client_tcp.available()) \par
+        \{\par
+            char c = client_tcp.read();\par
+            if (state==true) Feedback += String(c);          \par
+            if (c == '\\n') \par
+            \{\par
+              if (getResponse.length()==0) state=true; \par
+              getResponse = "";\par
+            \} \par
+            else if (c != '\\r')\par
+              getResponse += String(c);\par
+            if (wait==1)\par
+              startTime = millis();\par
+         \}\par
+         if (wait==0)\par
+          if ((state==true)&&(Feedback.length()!= 0)) break;\par
+      \}\par
+      client_tcp.stop();\par
+      return Feedback;\par
+    \}\par
+    else\par
+      return "Connection failed";  \par
+\}\par
+ \par
+String LineNotify(String token, String request, byte wait)\par
+\{\par
+  request.replace("%","%25");  \par
+  request.replace(" ","%20");\par
+  request.replace("&","%20");\par
+  request.replace("#","%20");\par
+  //request.replace("\\'","%27");\par
+  request.replace("\\"","%22");\par
+  request.replace("\\n","%0D%0A");\par
+  request.replace("%3Cbr%3E","%0D%0A");\par
+  request.replace("%3Cbr/%3E","%0D%0A");\par
+  request.replace("%3Cbr%20/%3E","%0D%0A");\par
+  request.replace("%3CBR%3E","%0D%0A");\par
+  request.replace("%3CBR/%3E","%0D%0A");\par
+  request.replace("%3CBR%20/%3E","%0D%0A"); \par
+  request.replace("%20stickerPackageId","&stickerPackageId");\par
+  request.replace("%20stickerId","&stickerId");    \par
+  \par
+  WiFiClientSecure client_tcp;\par
+  client_tcp.setInsecure();   //run version 1.0.5 or above\par
+  \par
+  if (client_tcp.connect("notify-api.line.me", 443)) \par
+  \{\par
+    client_tcp.println("POST /api/notify HTTP/1.1");\par
+    client_tcp.println("Connection: close"); \par
+    client_tcp.println("Host: notify-api.line.me");\par
+    client_tcp.println("User-Agent: ESP8266/1.0");\par
+    client_tcp.println("Authorization: Bearer " + token);\par
+    client_tcp.println("Content-Type: application/x-www-form-urlencoded");\par
+    client_tcp.println("Content-Length: " + String(request.length()));\par
+    client_tcp.println();\par
+    client_tcp.println(request);\par
+    client_tcp.println();\par
+    \par
+    String getResponse="",Feedback="";\par
+    boolean state = false;\par
+    int waitTime = 3000;   // timeout 3 seconds\par
+    long startTime = millis();\par
+    while ((startTime + waitTime) > millis())\par
+    \{\par
+      while (client_tcp.available()) \par
+      \{\par
+          char c = client_tcp.read();\par
+          if (state==true) Feedback += String(c);        \par
+          if (c == '\\n') \par
+          \{\par
+            if (getResponse.length()==0) state=true; \par
+            getResponse = "";\par
+          \} \par
+          else if (c != '\\r')\par
+            getResponse += String(c);\par
+          if (wait==1)\par
+            startTime = millis();\par
+       \}\par
+       if (wait==0)\par
+        if ((state==true)&&(Feedback.length()!= 0)) break;\par
+    \}\par
+    client_tcp.stop();\par
+    return Feedback;\par
+  \}\par
+  else\par
+    return "Connection failed";  \par
+\}\par
+ \par
+String sendCapturedImageToLineNotify(String token) \par
+\{\par
+  String getAll="", getBody = "";\par
+  \par
+  camera_fb_t * fb = NULL;\par
+  fb = esp_camera_fb_get();  \par
+  if(!fb) \{\par
+    Serial.println("Camera capture failed");\par
+    delay(1000);\par
+    ESP.restart();\par
+    return "";\par
+  \}  \par
+      \par
+  WiFiClientSecure client_tcp;\par
+  client_tcp.setInsecure();   //run version 1.0.5 or above\par
+  \par
+  Serial.println("Connect to notify-api.line.me");\par
+  \par
+  if (client_tcp.connect("notify-api.line.me", 443)) \{\par
+    Serial.println("Connection successful");\par
+ \par
+    String message = "Welcome to Taiwan.";\par
+    String head = "--Taiwan\\r\\nContent-Disposition: form-data; name=\\"message\\"; \\r\\n\\r\\n" + message + "\\r\\n--Taiwan\\r\\nContent-Disposition: form-data; name=\\"imageFile\\"; filename=\\"esp32-cam.jpg\\"\\r\\nContent-Type: image/jpeg\\r\\n\\r\\n";\par
+    String tail = "\\r\\n--Taiwan--\\r\\n";\par
+ \par
+    uint16_t imageLen = fb->len;\par
+    uint16_t extraLen = head.length() + tail.length();\par
+    uint16_t totalLen = imageLen + extraLen;\par
+  \par
+    client_tcp.println("POST /api/notify HTTP/1.1");\par
+    client_tcp.println("Connection: close"); \par
+    client_tcp.println("Host: notify-api.line.me");\par
+    client_tcp.println("Authorization: Bearer " + token);\par
+    client_tcp.println("Content-Length: " + String(totalLen));\par
+    client_tcp.println("Content-Type: multipart/form-data; boundary=Taiwan");\par
+    client_tcp.println();\par
+    client_tcp.print(head);\par
+    \par
+    uint8_t *fbBuf = fb->buf;\par
+    size_t fbLen = fb->len;\par
+    for (size_t n=0;n<fbLen;n=n+1024) \{\par
+      if (n+1024<fbLen) \{\par
+        client_tcp.write(fbBuf, 1024);\par
+        fbBuf += 1024;\par
+      \}\par
+      else if (fbLen%1024>0) \{\par
+        size_t remainder = fbLen%1024;\par
+        client_tcp.write(fbBuf, remainder);\par
+      \}\par
+    \}  \par
+    \par
+    client_tcp.print(tail);\par
+    esp_camera_fb_return(fb);\par
+    \par
+    int waitTime = 10000;   // timeout 10 seconds\par
+    long startTime = millis();\par
+    boolean state = false;\par
+    while ((startTime + waitTime) > millis())\par
+    \{\par
+      Serial.print(".");\par
+      delay(100);      \par
+      while (client_tcp.available()) \par
+      \{\par
+          char c = client_tcp.read();\par
+          if (state==true) getBody += String(c);        \par
+          if (c == '\\n') \par
+          \{\par
+            if (getAll.length()==0) state=true; \par
+            getAll = "";\par
+          \} \par
+          else if (c != '\\r')\par
+            getAll += String(c);\par
+          startTime = millis();\par
+       \}\par
+       if (getBody.length()>0) break;\par
+    \}\par
+    client_tcp.stop();\par
+    //Serial.println(getAll); \par
+    Serial.println(getBody);\par
+  \}\par
+  else \{\par
+    getAll="Connected to notify-api.line.me failed.";\par
+    getBody="Connected to notify-api.line.me failed.";\par
+    Serial.println("Connected to notify-api.line.me failed.");\par
+  \}\par
+  \par
+  //return getAll;\par
+  return getBody;\par
+\}\par
+}
+ 
